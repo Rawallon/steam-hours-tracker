@@ -53,3 +53,28 @@ export function computeDeltas(
     metas,
   }
 }
+
+import { fetchOwnedGames } from './steam'
+import { getLastSnapshot, saveSnapshot, addDailyMinutes, upsertGameMeta } from './redis'
+import { todayInTZ } from './date'
+
+export interface PollSummary {
+  date: string
+  deltas: Record<string, number>
+}
+
+export async function runPoll(): Promise<PollSummary> {
+  const [games, last] = await Promise.all([fetchOwnedGames(), getLastSnapshot()])
+  const { deltas, newSnapshot, metas } = computeDeltas(last, games)
+  const date = todayInTZ()
+
+  for (const [appid, minutes] of Object.entries(deltas)) {
+    await addDailyMinutes(date, appid, minutes)
+  }
+  for (const [appid, meta] of Object.entries(metas)) {
+    await upsertGameMeta(appid, meta)
+  }
+  await saveSnapshot(newSnapshot)
+
+  return { date, deltas }
+}
