@@ -30,9 +30,17 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
 
   const loadStats = useCallback(async () => {
-    const res = await fetch('/api/stats?days=30')
-    const data = await res.json()
-    setStats(data)
+    try {
+      const res = await fetch('/api/stats?days=30')
+      if (!res.ok) {
+        const body = await res.json()
+        throw new Error(body.error ?? 'Falha ao carregar dados')
+      }
+      const data = await res.json()
+      setStats(data)
+    } catch (err) {
+      setError((err as Error).message)
+    }
   }, [])
 
   useEffect(() => {
@@ -63,7 +71,7 @@ export default function Home() {
         {refreshing ? 'Atualizando...' : 'Atualizar agora'}
       </button>
       {error && <p className="error">{error}</p>}
-      {stats === null && <p>Carregando...</p>}
+      {stats === null && !error && <p>Carregando...</p>}
       {stats !== null && stats.length === 0 && <p>Nenhum dado registrado ainda.</p>}
       {stats?.map((day) => {
         const total = day.games.reduce((sum, g) => sum + g.minutes, 0)

@@ -24,4 +24,12 @@ describe('GET /api/stats', () => {
     expect(getStats).toHaveBeenCalledWith(7)
     expect(await response.json()).toEqual([{ date: '2026-01-02', games: [] }])
   })
+
+  it('returns 500 when getStats throws', async () => {
+    vi.mocked(getStats).mockRejectedValue(new Error('Redis unavailable'))
+    const request = new Request('http://localhost/api/stats')
+    const response = await GET(request)
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'Redis unavailable' })
+  })
 })
