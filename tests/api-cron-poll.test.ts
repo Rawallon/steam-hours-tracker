@@ -37,4 +37,14 @@ describe('GET /api/cron/poll', () => {
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'Steam API down' })
   })
+
+  it('rejects when CRON_SECRET is unset, even with Bearer undefined header', async () => {
+    delete process.env.CRON_SECRET
+    const request = new Request('http://localhost/api/cron/poll', {
+      headers: { authorization: 'Bearer undefined' },
+    })
+    const response = await GET(request)
+    expect(response.status).toBe(401)
+    expect(runPoll).not.toHaveBeenCalled()
+  })
 })
