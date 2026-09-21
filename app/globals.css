@@ -14,3 +14,49 @@ main {
   margin: 0 auto;
   padding: 24px 16px;
 }
+
+button {
+  background: #66c0f4;
+  color: #1b2838;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.error {
+  color: #f47f66;
+}
+
+.day {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #2a3f5a;
+}
+
+.bar {
+  display: flex;
+  height: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+td {
+  padding: 4px 0;
+}
+
+td:last-child {
+  text-align: right;
+}
