@@ -11,12 +11,22 @@ export async function saveSnapshot(snapshot: Snapshot): Promise<void> {
   await redis.set('snapshot:last', snapshot)
 }
 
-export async function addDailyMinutes(date: string, appid: string, minutes: number): Promise<void> {
-  await redis.hincrby(`daily:${date}`, appid, minutes)
+export async function addDailyMinutesBatch(
+  date: string,
+  deltas: Record<string, number>
+): Promise<void> {
+  const entries = Object.entries(deltas)
+  if (entries.length === 0) return
+  const pipeline = redis.pipeline()
+  for (const [appid, minutes] of entries) {
+    pipeline.hincrby(`daily:${date}`, appid, minutes)
+  }
+  await pipeline.exec()
 }
 
-export async function upsertGameMeta(appid: string, meta: GameMeta): Promise<void> {
-  await redis.hset('games:meta', { [appid]: meta })
+export async function upsertGameMetas(metas: Record<string, GameMeta>): Promise<void> {
+  if (Object.keys(metas).length === 0) return
+  await redis.hset('games:meta', metas)
 }
 
 export async function getGamesMeta(): Promise<Record<string, GameMeta>> {

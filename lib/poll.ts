@@ -1,4 +1,12 @@
 import type { OwnedGame } from './steam'
+import { fetchOwnedGames } from './steam'
+import {
+  getLastSnapshot,
+  saveSnapshot,
+  addDailyMinutesBatch,
+  upsertGameMetas,
+} from './redis'
+import { todayInTZ } from './date'
 
 export interface Snapshot {
   capturedAt: string
@@ -41,9 +49,13 @@ export function computeDeltas(
       deltas[appid] = currentMinutes - lastMinutes
     }
 
-    metas[appid] = {
-      name: game.name,
-      icon: iconUrl(game.appid, game.img_icon_url),
+    // Only games with recorded playtime can ever appear in a `daily:*` hash, so
+    // metadata for a never-played game would only ever be written, never read.
+    if (currentMinutes > 0) {
+      metas[appid] = {
+        name: game.name,
+        icon: iconUrl(game.appid, game.img_icon_url),
+      }
     }
   }
 
@@ -53,10 +65,6 @@ export function computeDeltas(
     metas,
   }
 }
-
-import { fetchOwnedGames } from './steam'
-import { getLastSnapshot, saveSnapshot, addDailyMinutes, upsertGameMeta } from './redis'
-import { todayInTZ } from './date'
 
 export interface PollSummary {
   date: string
@@ -68,13 +76,14 @@ export async function runPoll(): Promise<PollSummary> {
   const { deltas, newSnapshot, metas } = computeDeltas(last, games)
   const date = todayInTZ()
 
-  for (const [appid, minutes] of Object.entries(deltas)) {
-    await addDailyMinutes(date, appid, minutes)
-  }
-  for (const [appid, meta] of Object.entries(metas)) {
-    await upsertGameMeta(appid, meta)
-  }
+  // Snapshot first, deltas last. HINCRBY is not idempotent, so if we wrote the
+  // deltas first and then died before saving the snapshot, the next run would
+  // recompute and re-apply the same delta, silently inflating recorded hours.
+  // Saving the snapshot first means a partial failure under-counts one poll
+  // interval instead, which is the far safer failure mode.
   await saveSnapshot(newSnapshot)
+  await upsertGameMetas(metas)
+  await addDailyMinutesBatch(date, deltas)
 
   return { date, deltas }
 }

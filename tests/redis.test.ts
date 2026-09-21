@@ -1,14 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockRedis } = vi.hoisted(() => ({
-  mockRedis: {
-    get: vi.fn(),
-    set: vi.fn(),
+const { mockRedis, mockPipeline } = vi.hoisted(() => {
+  const mockPipeline = {
     hincrby: vi.fn(),
-    hset: vi.fn(),
-    hgetall: vi.fn(),
-  },
-}))
+    exec: vi.fn(),
+  }
+  return {
+    mockPipeline,
+    mockRedis: {
+      get: vi.fn(),
+      set: vi.fn(),
+      hset: vi.fn(),
+      hgetall: vi.fn(),
+      pipeline: vi.fn(() => mockPipeline),
+    },
+  }
+})
 
 vi.mock('@upstash/redis', () => ({
   Redis: { fromEnv: () => mockRedis },
@@ -17,8 +24,8 @@ vi.mock('@upstash/redis', () => ({
 import {
   getLastSnapshot,
   saveSnapshot,
-  addDailyMinutes,
-  upsertGameMeta,
+  addDailyMinutesBatch,
+  upsertGameMetas,
   getGamesMeta,
   getDailyMinutes,
 } from '../lib/redis'
@@ -49,18 +56,37 @@ describe('saveSnapshot', () => {
   })
 })
 
-describe('addDailyMinutes', () => {
-  it('increments the appid field on the day hash', async () => {
-    await addDailyMinutes('2026-01-15', '42', 30)
-    expect(mockRedis.hincrby).toHaveBeenCalledWith('daily:2026-01-15', '42', 30)
+describe('addDailyMinutesBatch', () => {
+  it('increments every appid field on the day hash in one pipeline', async () => {
+    await addDailyMinutesBatch('2026-01-15', { '42': 30, '7': 15 })
+    expect(mockRedis.pipeline).toHaveBeenCalledTimes(1)
+    expect(mockPipeline.hincrby).toHaveBeenCalledTimes(2)
+    expect(mockPipeline.hincrby).toHaveBeenCalledWith('daily:2026-01-15', '42', 30)
+    expect(mockPipeline.hincrby).toHaveBeenCalledWith('daily:2026-01-15', '7', 15)
+    expect(mockPipeline.exec).toHaveBeenCalledTimes(1)
+  })
+
+  it('issues no request when there are no deltas', async () => {
+    await addDailyMinutesBatch('2026-01-15', {})
+    expect(mockRedis.pipeline).not.toHaveBeenCalled()
+    expect(mockPipeline.exec).not.toHaveBeenCalled()
   })
 })
 
-describe('upsertGameMeta', () => {
-  it('sets the appid field on the games:meta hash', async () => {
-    const meta = { name: 'Half-Life', icon: 'https://example.com/icon.jpg' }
-    await upsertGameMeta('42', meta)
-    expect(mockRedis.hset).toHaveBeenCalledWith('games:meta', { '42': meta })
+describe('upsertGameMetas', () => {
+  it('writes the whole map to games:meta in a single hset', async () => {
+    const metas = {
+      '42': { name: 'Half-Life', icon: 'https://example.com/icon.jpg' },
+      '7': { name: 'Portal', icon: 'https://example.com/portal.jpg' },
+    }
+    await upsertGameMetas(metas)
+    expect(mockRedis.hset).toHaveBeenCalledTimes(1)
+    expect(mockRedis.hset).toHaveBeenCalledWith('games:meta', metas)
+  })
+
+  it('issues no request when there is no metadata', async () => {
+    await upsertGameMetas({})
+    expect(mockRedis.hset).not.toHaveBeenCalled()
   })
 })
 

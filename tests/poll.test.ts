@@ -43,11 +43,23 @@ describe('computeDeltas', () => {
   })
 
   it('builds metadata with an icon URL from appid and img_icon_url', () => {
-    const result = computeDeltas(null, [game({ appid: 42, name: 'Half-Life', img_icon_url: 'hash123' })])
+    const result = computeDeltas(null, [
+      game({ appid: 42, name: 'Half-Life', img_icon_url: 'hash123', playtime_forever: 10 }),
+    ])
     expect(result.metas['42']).toEqual({
       name: 'Half-Life',
       icon: 'https://media.steampowered.com/steamcommunity/public/images/apps/42/hash123.jpg',
     })
+  })
+
+  it('omits metadata for an owned game that has never been played', () => {
+    const result = computeDeltas(null, [
+      game({ appid: 42, playtime_forever: 0 }),
+      game({ appid: 43, playtime_forever: 5 }),
+    ])
+    expect(Object.keys(result.metas)).toEqual(['43'])
+    // The unplayed game still belongs in the snapshot so a later delta works.
+    expect(result.newSnapshot.games['42']).toBe(0)
   })
 })
 
