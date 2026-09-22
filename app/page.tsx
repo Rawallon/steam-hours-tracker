@@ -14,8 +14,12 @@ interface DayStats {
   games: DayGameStats[]
 }
 
-function formatHours(minutes: number): string {
-  return (minutes / 60).toFixed(1)
+function formatMinutes(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = Math.round(totalMinutes % 60)
+  if (hours === 0) return `${minutes}min`
+  if (minutes === 0) return `${hours}h`
+  return `${hours}h ${minutes}min`
 }
 
 const COLORS = ['#66c0f4', '#c6f4d6', '#f4d166', '#f47f66', '#a866f4', '#f466cf']
@@ -84,7 +88,7 @@ export default function Home() {
                   key={game.appid}
                   className="bar-segment"
                   style={{ width: `${(game.minutes / total) * 100}%`, backgroundColor: colorFor(i) }}
-                  title={`${game.name}: ${formatHours(game.minutes)}h`}
+                  title={`${game.name}: ${formatMinutes(game.minutes)}`}
                 />
               ))}
             </div>
@@ -93,7 +97,7 @@ export default function Home() {
                 {day.games.map((game) => (
                   <tr key={game.appid}>
                     <td>{game.name}</td>
-                    <td>{formatHours(game.minutes)}h</td>
+                    <td>{formatMinutes(game.minutes)}</td>
                   </tr>
                 ))}
               </tbody>
