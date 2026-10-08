@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const { mockRedis, mockPipeline } = vi.hoisted(() => {
   const mockPipeline = {
     hincrby: vi.fn(),
+    hgetall: vi.fn(),
     exec: vi.fn(),
   }
   return {
@@ -28,6 +29,7 @@ import {
   upsertGameMetas,
   getGamesMeta,
   getDailyMinutes,
+  getDailyMinutesBatch,
 } from '../lib/redis'
 
 beforeEach(() => {
@@ -115,5 +117,21 @@ describe('getDailyMinutes', () => {
     mockRedis.hgetall.mockResolvedValue(minutes)
     expect(await getDailyMinutes('2026-01-15')).toEqual(minutes)
     expect(mockRedis.hgetall).toHaveBeenCalledWith('daily:2026-01-15')
+  })
+})
+
+describe('getDailyMinutesBatch', () => {
+  it('reads all days in one pipeline, null -> {}, coerces to numbers', async () => {
+    mockPipeline.exec.mockResolvedValue([{ '1': '30' }, null])
+    const res = await getDailyMinutesBatch(['2026-01-02', '2026-01-01'])
+    expect(mockRedis.pipeline).toHaveBeenCalledTimes(1)
+    expect(mockPipeline.hgetall).toHaveBeenCalledWith('daily:2026-01-02')
+    expect(mockPipeline.hgetall).toHaveBeenCalledWith('daily:2026-01-01')
+    expect(res).toEqual({ '2026-01-02': { '1': 30 }, '2026-01-01': {} })
+  })
+
+  it('does nothing for empty input', async () => {
+    expect(await getDailyMinutesBatch([])).toEqual({})
+    expect(mockRedis.pipeline).not.toHaveBeenCalled()
   })
 })

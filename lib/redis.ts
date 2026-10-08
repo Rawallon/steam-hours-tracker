@@ -33,6 +33,22 @@ export async function getGamesMeta(): Promise<Record<string, GameMeta>> {
   return (await redis.hgetall<Record<string, GameMeta>>('games:meta')) ?? {}
 }
 
+export async function getDailyMinutesBatch(
+  dates: string[]
+): Promise<Record<string, Record<string, number>>> {
+  if (dates.length === 0) return {}
+  const pipeline = redis.pipeline()
+  for (const date of dates) pipeline.hgetall(`daily:${date}`)
+  const res = (await pipeline.exec()) as (Record<string, unknown> | null)[]
+  const out: Record<string, Record<string, number>> = {}
+  dates.forEach((date, i) => {
+    out[date] = Object.fromEntries(
+      Object.entries(res[i] ?? {}).map(([k, v]) => [k, Number(v)])
+    )
+  })
+  return out
+}
+
 export async function getDailyMinutes(date: string): Promise<Record<string, number>> {
   return (await redis.hgetall<Record<string, number>>(`daily:${date}`)) ?? {}
 }
