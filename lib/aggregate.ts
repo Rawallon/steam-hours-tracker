@@ -136,3 +136,127 @@ export function kpis(series: DayPoint[]): {
     longest,
   }
 }
+
+const dayTotal = (p: DayPoint) => sum(p.byGame)
+
+interface ClassStat {
+  total: number
+  days: number
+  avg: number
+}
+
+export function weekdayWeekend(series: DayPoint[]): { weekday: ClassStat; weekend: ClassStat; ratio: number | null } {
+  const acc = { weekday: { total: 0, days: 0, avg: 0 }, weekend: { total: 0, days: 0, avg: 0 } }
+  for (const p of series) {
+    const m = dayTotal(p)
+    if (m <= 0) continue
+    const c = dayOfWeek(p.date) >= 5 ? acc.weekend : acc.weekday
+    c.total += m
+    c.days++
+  }
+  for (const c of [acc.weekday, acc.weekend]) c.avg = c.days > 0 ? c.total / c.days : 0
+  const ratio = acc.weekday.avg > 0 && acc.weekend.avg > 0 ? acc.weekend.avg / acc.weekday.avg : null
+  return { ...acc, ratio }
+}
+
+export function cumulative(series: DayPoint[]): { date: string; minutes: number }[] {
+  let run = 0
+  return series.map((p) => {
+    run += dayTotal(p)
+    return { date: p.date, minutes: run }
+  })
+}
+
+export function streaks(series: DayPoint[]): {
+  longest: { start: string; end: string; days: number } | null
+  current: number
+} {
+  let longest: { start: string; end: string; days: number } | null = null
+  let start = ''
+  let end = ''
+  let len = 0
+  for (const p of series) {
+    if (dayTotal(p) > 0) {
+      if (len > 0 && addDays(end, 1) === p.date) {
+        len++
+      } else {
+        start = p.date
+        len = 1
+      }
+      end = p.date
+      if (!longest || len > longest.days) longest = { start, end, days: len }
+    } else {
+      len = 0
+    }
+  }
+  return { longest, current: len }
+}
+
+export function profile(
+  series: DayPoint[],
+  meta: Record<string, { name: string }>
+): {
+  mainGame: { appid: string; minutes: number; share: number } | null
+  recentGame: string | null
+  activeDays: number
+  distinctGames: number
+} {
+  const totals = totalsByGame(series)
+  const all = totals.reduce((a, t) => a + t.minutes, 0)
+  const main = totals[0]
+  let recentGame: string | null = null
+  for (let i = series.length - 1; i >= 0; i--) {
+    const top = Object.entries(series[i].byGame)
+      .filter(([, m]) => m > 0)
+      .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]
+    if (top) {
+      recentGame = meta[top[0]]?.name ?? `App ${top[0]}`
+      break
+    }
+  }
+  return {
+    mainGame: main && all > 0 ? { appid: main.appid, minutes: main.minutes, share: main.minutes / all } : null,
+    recentGame,
+    activeDays: series.filter((p) => dayTotal(p) > 0).length,
+    distinctGames: totals.filter((t) => t.minutes > 0).length,
+  }
+}
+
+export function ribbon(
+  series: DayPoint[],
+  top: string[]
+): { date: string; segments: { appid: string; minutes: number }[] }[] {
+  return series.map((p) => ({
+    date: p.date,
+    segments: stackOf({ key: p.date, byGame: p.byGame, total: dayTotal(p) }, top),
+  }))
+}
+
+export function monthGrid(
+  series: DayPoint[],
+  month: string
+): { date: string | null; minutes: number; level: 0 | 1 | 2 | 3 | 4 }[][] {
+  const first = `${month}-01`
+  const minutesBy = new Map(series.filter((p) => p.date.startsWith(month)).map((p) => [p.date, dayTotal(p)]))
+  const max = Math.max(0, ...minutesBy.values())
+  const rows: { date: string | null; minutes: number; level: 0 | 1 | 2 | 3 | 4 }[][] = []
+  let row: (typeof rows)[number] = Array.from({ length: dayOfWeek(first) }, () => ({
+    date: null,
+    minutes: 0,
+    level: 0 as const,
+  }))
+  for (let d = first; d.startsWith(month); d = addDays(d, 1)) {
+    const minutes = minutesBy.get(d) ?? 0
+    const level = (minutes > 0 && max > 0 ? Math.min(4, Math.ceil((minutes / max) * 4)) : 0) as 0 | 1 | 2 | 3 | 4
+    row.push({ date: d, minutes, level })
+    if (row.length === 7) {
+      rows.push(row)
+      row = []
+    }
+  }
+  if (row.length > 0) {
+    while (row.length < 7) row.push({ date: null, minutes: 0, level: 0 })
+    rows.push(row)
+  }
+  return rows
+}

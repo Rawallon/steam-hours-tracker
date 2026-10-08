@@ -164,3 +164,36 @@ Behavior:
 ## Self-review
 - Spec coverage: data/API (T2), date (T1), aggregate (T3), UI/state/footnote (T4), tests across tasks, docs (T5). Donut/“all”/day-detail panel intentionally absent.
 - Type names consistent across tasks: `StatsResponse`, `DayPoint`, `Bucket`, `GameTotal`, `Cell`, `OTHER`, `Group`.
+
+---
+
+## Second pass (added 2026-10-08)
+
+Scope: weekday/weekend, cumulative line, extra KPIs, streaks/profile, game-switching ribbon, monthly calendar. Out: session length, genre/"hunting" share (no genre data; skipped).
+Same Global Constraints apply. Extend `lib/aggregate.ts` (pure, TDD) first, then UI; follow existing component/CSS style on the branch.
+
+### Task 6: Aggregation additions
+**Produces (add to `lib/aggregate.ts`, exact):**
+```ts
+weekdayWeekend(series: DayPoint[]): { weekday: { total: number; days: number; avg: number }; weekend: { total: number; days: number; avg: number }; ratio: number | null }
+  // days = ACTIVE days (>0 min) per class; avg = total/days (0 if none); weekend = Sat/Sun via dayOfWeek >= 5; ratio = weekend.avg / weekday.avg, null if either avg is 0
+cumulative(series: DayPoint[]): { date: string; minutes: number }[]   // running total, one point per series day (zero days included)
+streaks(series: DayPoint[]): { longest: { start: string; end: string; days: number } | null; current: number }
+  // streak = consecutive calendar days with >0 min; current = streak ending at last series day (0 if last day is 0)
+profile(series: DayPoint[], meta: Record<string,{name:string}>): { mainGame: { appid: string; minutes: number; share: number } | null; recentGame: string | null; activeDays: number; distinctGames: number }
+  // recentGame = top game of the most recent active day
+ribbon(series: DayPoint[], topIds: string[]): { date: string; segments: { appid: string; minutes: number }[] }[]  // per active-or-not day: stackOf-like (top then OTHER), for a stream chart
+monthGrid(series: DayPoint[], month: string /* YYYY-MM */): { date: string | null; minutes: number; level: 0|1|2|3|4 }[][]  // rows = weeks Mon..Sun; null date = padding; minutes from series (0 if missing)
+```
+- [ ] Failing tests first (week/month/year boundary, empty/all-zero series → no NaN/null-safe, ratio null cases, streak across month boundary, monthGrid for Feb 2028 leap and a month starting on Sunday). Run → FAIL → implement → PASS + `tsc`. Commit `feat: aggregation for weekday/weekend, cumulative, streaks, ribbon, calendar`.
+
+### Task 7: UI additions
+Add components in `app/components/` and place in `Dashboard` below KPI row/main chart; all respect range + game filter except where noted:
+- `KpiRow`: add tiles Dias jogados, Jogos diferentes, % do tempo no jogo principal (main game). Keep 2→1 col responsive grid (may become 2 rows on desktop).
+- `WeekdayWeekend`: two horizontal bars (Dia útil / Fim de semana) with avg per active day and caption "Você joga X× mais nos fins de semana" (hide caption when ratio null). Also tint weekend bars in `StackedBars` when group = day (subtle, keep game colors; e.g. weekend x-label accent + faint column band).
+- `CumulativeChart`: SVG area/line of running hours, end label "Total: Xh Ymin"; y-axis hours; responsive width like StackedBars.
+- `ProfileCard` ("Seu perfil recente"): main game + share, longest day, longest streak (dates), current streak, most recent game. Plain facts, no genre claims.
+- `Ribbon` ("Linha do tempo de jogos"): stream/stacked-area chart over the range using `ribbon()` with game colors, legend shared with main chart; hover/focus shows day + games. Ignores the game filter (shows all games) but highlights the selected game.
+- `MonthCalendar`: month grid with prev/next buttons (default = month of `today`), cell shows day number and time, intensity by level, today outlined; uses unfiltered-by-range full series (365) but respects game filter.
+- Copy Portuguese. Mobile 375px: single column, no page-level horizontal scroll. Contrast AA. Keep file sizes focused.
+- [ ] Add tests for any new pure helpers (labels/format). `npx vitest run`, `tsc`, `next build` pass. Manual headless-Chrome screenshots 1200px + 375px with temporary fixture (remove, don't commit). Commit `feat: dashboard second pass`.

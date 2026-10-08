@@ -9,6 +9,12 @@ import {
   colorMap,
   heatmapCells,
   kpis,
+  weekdayWeekend,
+  cumulative,
+  streaks,
+  profile,
+  ribbon,
+  monthGrid,
   OTHER,
   type DayPoint,
 } from '../lib/aggregate'
@@ -148,4 +154,122 @@ describe('kpis', () => {
     })
   })
   it('empty series', () => expect(kpis([]).topAppid).toBeNull())
+})
+
+describe('weekdayWeekend', () => {
+  it('splits Mon-Fri vs Sat/Sun over active days', () => {
+    // 2026-10-02 Fri, 03 Sat, 04 Sun, 05 Mon
+    const r = weekdayWeekend([
+      pt('2026-10-02', { '1': 60 }),
+      pt('2026-10-03', { '1': 120, '2': 60 }),
+      pt('2026-10-04', { '1': 180 }),
+      pt('2026-10-05'),
+    ])
+    expect(r.weekday).toEqual({ total: 60, days: 1, avg: 60 })
+    expect(r.weekend).toEqual({ total: 360, days: 2, avg: 180 })
+    expect(r.ratio).toBe(3)
+  })
+  it('null ratio and zero avg when a side is empty or series empty', () => {
+    expect(weekdayWeekend([]).ratio).toBeNull()
+    const r = weekdayWeekend([pt('2026-10-05', { '1': 30 }), pt('2026-10-06')])
+    expect(r.weekend).toEqual({ total: 0, days: 0, avg: 0 })
+    expect(r.ratio).toBeNull()
+    const r2 = weekdayWeekend([pt('2026-10-03', { '1': 30 })])
+    expect(r2.weekday.avg).toBe(0)
+    expect(r2.ratio).toBeNull()
+  })
+})
+
+describe('cumulative', () => {
+  it('running total including zero days', () => {
+    const r = cumulative([pt('2026-12-31', { '1': 10 }), pt('2027-01-01'), pt('2027-01-02', { '1': 5, '2': 5 })])
+    expect(r).toEqual([
+      { date: '2026-12-31', minutes: 10 },
+      { date: '2027-01-01', minutes: 10 },
+      { date: '2027-01-02', minutes: 20 },
+    ])
+  })
+  it('empty', () => {
+    expect(cumulative([])).toEqual([])
+  })
+})
+
+describe('streaks', () => {
+  it('longest across month boundary, current ending at last day', () => {
+    const s = [
+      pt('2026-01-29', { '1': 1 }),
+      pt('2026-01-30', { '1': 1 }),
+      pt('2026-01-31', { '1': 1 }),
+      pt('2026-02-01', { '1': 1 }),
+      pt('2026-02-02'),
+      pt('2026-02-03', { '1': 1 }),
+      pt('2026-02-04', { '1': 1 }),
+    ]
+    expect(streaks(s)).toEqual({ longest: { start: '2026-01-29', end: '2026-02-01', days: 4 }, current: 2 })
+  })
+  it('current 0 when last day is zero; first longest wins ties', () => {
+    const s = [pt('2026-03-01', { '1': 1 }), pt('2026-03-02'), pt('2026-03-03', { '1': 1 }), pt('2026-03-04')]
+    expect(streaks(s)).toEqual({ longest: { start: '2026-03-01', end: '2026-03-01', days: 1 }, current: 0 })
+  })
+  it('empty and all-zero', () => {
+    expect(streaks([])).toEqual({ longest: null, current: 0 })
+    expect(streaks([pt('2026-03-01'), pt('2026-03-02')])).toEqual({ longest: null, current: 0 })
+  })
+})
+
+describe('profile', () => {
+  const meta = { '1': { name: 'A' }, '2': { name: 'B' } }
+  it('main game, recent game name, counts', () => {
+    const r = profile(
+      [pt('2026-03-01', { '1': 100 }), pt('2026-03-02', { '1': 20, '2': 80 }), pt('2026-03-03')],
+      meta
+    )
+    expect(r.mainGame).toEqual({ appid: '1', minutes: 120, share: 0.6 })
+    expect(r.recentGame).toBe('B')
+    expect(r.activeDays).toBe(2)
+    expect(r.distinctGames).toBe(2)
+  })
+  it('empty is null-safe; unknown meta falls back', () => {
+    expect(profile([], meta)).toEqual({ mainGame: null, recentGame: null, activeDays: 0, distinctGames: 0 })
+    expect(profile([pt('2026-03-01', { '9': 5 })], {}).recentGame).toBe('App 9')
+  })
+})
+
+describe('ribbon', () => {
+  it('one entry per day with top then OTHER', () => {
+    const r = ribbon([pt('2026-03-01', { '1': 10, '2': 5, '3': 2 }), pt('2026-03-02')], ['1', '2'])
+    expect(r).toEqual([
+      {
+        date: '2026-03-01',
+        segments: [
+          { appid: '1', minutes: 10 },
+          { appid: '2', minutes: 5 },
+          { appid: OTHER, minutes: 2 },
+        ],
+      },
+      { date: '2026-03-02', segments: [] },
+    ])
+  })
+})
+
+describe('monthGrid', () => {
+  it('Feb 2028 (leap, starts Tuesday) pads and has 29 days', () => {
+    const g = monthGrid([pt('2028-02-29', { '1': 60 }), pt('2028-02-10', { '1': 30 })], '2028-02')
+    expect(g.every((w) => w.length === 7)).toBe(true)
+    expect(g[0][0].date).toBeNull()
+    expect(g[0][1].date).toBe('2028-02-01')
+    const days = g.flat().filter((c) => c.date)
+    expect(days).toHaveLength(29)
+    const last = days[days.length - 1]
+    expect(last).toMatchObject({ date: '2028-02-29', minutes: 60, level: 4 })
+    expect(days.find((c) => c.date === '2028-02-10')).toMatchObject({ minutes: 30, level: 2 })
+    expect(days.find((c) => c.date === '2028-02-11')).toMatchObject({ minutes: 0, level: 0 })
+  })
+  it('month starting on Sunday (Feb 2026... Mar 2026) puts day 1 in last column', () => {
+    const g = monthGrid([], '2026-03')
+    expect(g[0].slice(0, 6).every((c) => c.date === null)).toBe(true)
+    expect(g[0][6].date).toBe('2026-03-01')
+    expect(g.flat().every((c) => c.level === 0)).toBe(true)
+    expect(g).toHaveLength(6)
+  })
 })
