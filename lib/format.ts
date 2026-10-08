@@ -32,3 +32,38 @@ export function monthName(date: string): string {
 export function weekdayName(row: number): string {
   return WEEKDAYS[row]
 }
+
+const MONTHS_FULL = [
+  'janeiro',
+  'fevereiro',
+  'março',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
+]
+
+/** YYYY-MM -> "outubro 2026" */
+export function monthTitle(month: string): string {
+  return `${MONTHS_FULL[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`
+}
+
+/** Tight form for small cells: 0 -> "", 45 -> "45m", 120 -> "2h", 150 -> "2h30" */
+export function formatCompact(totalMinutes: number): string {
+  const rounded = Math.round(totalMinutes)
+  if (rounded <= 0) return ''
+  const h = Math.floor(rounded / 60)
+  const m = rounded % 60
+  if (h === 0) return `${m}m`
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`
+}
+
+/** Hours with one comma decimal: 90 -> "1,5h" */
+export function formatHours(totalMinutes: number): string {
+  return `${(totalMinutes / 60).toFixed(1).replace('.', ',')}h`
+}

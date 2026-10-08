@@ -10,6 +10,7 @@ import {
   filterByGame,
   heatmapCells,
   kpis,
+  profile,
   topIds,
   totalsByGame,
   type Group,
@@ -20,6 +21,11 @@ import KpiRow from './KpiRow'
 import StackedBars from './StackedBars'
 import GameBreakdown from './GameBreakdown'
 import Heatmap from './Heatmap'
+import WeekdayWeekend from './WeekdayWeekend'
+import CumulativeChart from './CumulativeChart'
+import ProfileCard from './ProfileCard'
+import Ribbon from './Ribbon'
+import MonthCalendar from './MonthCalendar'
 
 const HEATMAP_MIN_DAYS = 180
 
@@ -86,6 +92,11 @@ export default function Dashboard({ initial }: { initial: View }) {
     const heatSeries = filterByGame(full.slice(-Math.max(range, HEATMAP_MIN_DAYS)), game)
     return {
       colors,
+      rangeSeries,
+      filtered,
+      ribbonTop: topIds(rangeTotals),
+      calendarSeries: filterByGame(full, game),
+      prof: profile(filtered, {}),
       rangeTotals,
       top: topIds(filteredTotals),
       buckets: bucketBy(filtered, group),
@@ -139,6 +150,8 @@ export default function Dashboard({ initial }: { initial: View }) {
               activeDays={derived.stats.activeDays}
               top={derived.stats.topAppid ? (meta[derived.stats.topAppid] ?? { name: `App ${derived.stats.topAppid}`, icon: '' }) : null}
               longest={derived.stats.longest}
+              distinctGames={derived.prof.distinctGames}
+              mainShare={derived.prof.mainGame ? derived.prof.mainGame.share : null}
             />
             <div className="layout">
               <section className="card panel" aria-labelledby="chart-h">
@@ -174,6 +187,22 @@ export default function Dashboard({ initial }: { initial: View }) {
                 onToggleGame={toggleGame}
                 onClear={() => update({ game: null })}
               />
+            </div>
+            <div className="grid-2">
+              <CumulativeChart series={derived.filtered} />
+              <WeekdayWeekend series={derived.filtered} />
+            </div>
+            <Ribbon
+              series={derived.rangeSeries}
+              top={derived.ribbonTop}
+              colors={derived.colors}
+              meta={meta}
+              game={game}
+              onToggleGame={toggleGame}
+            />
+            <div className="grid-2">
+              <ProfileCard series={derived.filtered} meta={meta} />
+              <MonthCalendar series={derived.calendarSeries} today={data!.today} />
             </div>
             <Heatmap series={derived.heatSeries} cells={derived.cells} meta={meta} />
           </>

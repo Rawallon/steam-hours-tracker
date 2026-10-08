@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatMinutes, shortDate, longDate, monthLabel } from '../lib/format'
+import { formatMinutes, shortDate, longDate, monthLabel, monthTitle, formatCompact, formatHours } from '../lib/format'
 
 describe('formatMinutes', () => {
   it('formats', () => {
@@ -15,5 +15,19 @@ describe('date labels', () => {
     expect(shortDate('2026-03-07')).toBe('07/03')
     expect(longDate('2026-10-03')).toBe('03 out 2026')
     expect(monthLabel('2026-10-01')).toBe('out/26')
+  })
+})
+
+describe('monthTitle / formatCompact / formatHours', () => {
+  it('formats', () => {
+    expect(monthTitle('2026-10')).toBe('outubro 2026')
+    expect(monthTitle('2028-02')).toBe('fevereiro 2028')
+    expect(formatCompact(0)).toBe('')
+    expect(formatCompact(45)).toBe('45m')
+    expect(formatCompact(120)).toBe('2h')
+    expect(formatCompact(125)).toBe('2h05')
+    expect(formatCompact(150)).toBe('2h30')
+    expect(formatHours(90)).toBe('1,5h')
+    expect(formatHours(0)).toBe('0,0h')
   })
 })

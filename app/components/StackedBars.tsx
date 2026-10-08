@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { OTHER, OTHER_COLOR, stackOf, type Bucket, type Group } from '@/lib/aggregate'
+import { dayOfWeek } from '@/lib/date'
 import { formatMinutes, longDate, monthLabel, shortDate } from '@/lib/format'
 import { useWidth } from './useWidth'
+import Legend from './Legend'
 
 type Meta = Record<string, { name: string; icon: string }>
 
@@ -19,9 +21,9 @@ interface Props {
 
 const M = { left: 38, right: 8, top: 10, bottom: 24 }
 const SCROLL_THRESHOLD = 60
-const STEPS = [0.25, 0.5, 1, 2, 5, 10, 20, 50, 100, 200]
+export const STEPS = [0.25, 0.5, 1, 2, 5, 10, 20, 50, 100, 200]
 
-function niceScale(maxMinutes: number) {
+export function niceScale(maxMinutes: number) {
   const maxH = maxMinutes / 60
   const step = STEPS.find((s) => s * 4 >= maxH) ?? 200
   return { step, max: step * 4 }
@@ -92,6 +94,7 @@ export default function StackedBars({ buckets, top, colors, meta, group, game, o
                 const x = M.left + slot * i + (slot - barW) / 2
                 let acc = 0
                 const segs = stackOf(b, top)
+                const weekend = group === 'day' && dayOfWeek(b.key) >= 5
                 return (
                   <g
                     key={b.key}
@@ -103,6 +106,7 @@ export default function StackedBars({ buckets, top, colors, meta, group, game, o
                     onBlur={() => setHover(null)}
                     className={hover === i ? 'bar is-hover' : 'bar'}
                   >
+                    {weekend && <rect x={M.left + slot * i} y={M.top} width={slot} height={plotH} className="weekend-band" />}
                     <rect x={M.left + slot * i} y={M.top} width={slot} height={plotH} className="hit" />
                     {segs.map((s) => {
                       const y1 = yOf(acc + s.minutes)
@@ -121,7 +125,7 @@ export default function StackedBars({ buckets, top, colors, meta, group, game, o
                       )
                     })}
                     {i % every === 0 && (
-                      <text x={M.left + slot * i + slot / 2} y={H - 7} textAnchor="middle" className="tick">
+                      <text x={M.left + slot * i + slot / 2} y={H - 7} textAnchor="middle" className={weekend ? 'tick tick-weekend' : 'tick'}>
                         {tickLabel(b, group)}
                       </text>
                     )}
@@ -152,31 +156,8 @@ export default function StackedBars({ buckets, top, colors, meta, group, game, o
           </div>
         )}
       </div>
-      {gameVisible && (
-        <ul className="legend" aria-label="Legenda">
-          {legend.map((id) => (
-            <li key={id}>
-              {id === OTHER ? (
-                <span className="legend-item static">
-                  <i style={{ background: OTHER_COLOR }} />
-                  Outros
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="legend-item"
-                  aria-pressed={game === id}
-                  onClick={() => onToggleGame(id)}
-                  title={game === id ? 'Limpar filtro' : `Filtrar por ${nameOf(meta, id)}`}
-                >
-                  <i style={{ background: colors[id] ?? OTHER_COLOR }} />
-                  {nameOf(meta, id)}
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      {gameVisible && <Legend ids={legend} colors={colors} meta={meta} game={game} onToggleGame={onToggleGame} />}
+      {group === 'day' && n > 0 && <p className="muted small chart-note">Fins de semana em destaque.</p>}
     </div>
   )
 }

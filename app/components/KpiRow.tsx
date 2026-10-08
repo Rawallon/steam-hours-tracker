@@ -7,9 +7,11 @@ interface Props {
   activeDays: number
   top: { name: string; icon: string } | null
   longest: { date: string; minutes: number } | null
+  distinctGames: number
+  mainShare: number | null
 }
 
-export default function KpiRow({ total, avgPerActiveDay, activeDays, top, longest }: Props) {
+export default function KpiRow({ total, avgPerActiveDay, activeDays, top, longest, distinctGames, mainShare }: Props) {
   return (
     <section className="kpis" aria-label="Resumo">
       <div className="card kpi">
@@ -42,6 +44,30 @@ export default function KpiRow({ total, avgPerActiveDay, activeDays, top, longes
           <>
             <strong className="kpi-value">{formatMinutes(longest.minutes)}</strong>
             <span className="kpi-sub">{longDate(longest.date)}</span>
+          </>
+        ) : (
+          <>
+            <strong className="kpi-value kpi-none">—</strong>
+            <span className="kpi-sub">&nbsp;</span>
+          </>
+        )}
+      </div>
+      <div className="card kpi">
+        <span className="kpi-label">Dias jogados</span>
+        <strong className="kpi-value">{activeDays}</strong>
+        <span className="kpi-sub">com pelo menos 1 min</span>
+      </div>
+      <div className="card kpi">
+        <span className="kpi-label">Jogos diferentes</span>
+        <strong className="kpi-value">{distinctGames}</strong>
+        <span className="kpi-sub">no período</span>
+      </div>
+      <div className="card kpi">
+        <span className="kpi-label">Tempo no jogo principal</span>
+        {mainShare !== null ? (
+          <>
+            <strong className="kpi-value">{Math.round(mainShare * 100)}%</strong>
+            <span className="kpi-sub">do tempo total</span>
           </>
         ) : (
           <>
