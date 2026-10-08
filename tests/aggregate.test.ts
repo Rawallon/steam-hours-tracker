@@ -97,6 +97,13 @@ describe('colorMap', () => {
     expect(a.x).not.toBe(a.y)
     expect(a[OTHER]).toBe('#4b5563')
   })
+  it('games beyond the palette get distinct non-gray colors', () => {
+    const totals = Array.from({ length: 12 }, (_, i) => ({ appid: String(i), minutes: 100 - i }))
+    const a = colorMap(totals)
+    const vals = totals.map((t) => a[t.appid])
+    expect(new Set(vals).size).toBe(12)
+    expect(vals).not.toContain('#4b5563')
+  })
 })
 
 describe('heatmapCells', () => {

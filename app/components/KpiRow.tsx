@@ -1,4 +1,5 @@
 import { formatMinutes, longDate } from '@/lib/format'
+import GameIcon from './GameIcon'
 
 interface Props {
   total: number
@@ -27,7 +28,7 @@ export default function KpiRow({ total, avgPerActiveDay, activeDays, top, longes
         <span className="kpi-label">Jogo mais jogado</span>
         {top ? (
           <strong className="kpi-value kpi-game" title={top.name}>
-            {top.icon && <img src={top.icon} alt="" width={24} height={24} />}
+            {top.icon && <GameIcon src={top.icon} name="" size={24} />}
             <span>{top.name}</span>
           </strong>
         ) : (

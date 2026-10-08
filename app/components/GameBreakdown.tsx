@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { GameTotal } from '@/lib/aggregate'
 import { OTHER_COLOR } from '@/lib/aggregate'
 import { formatMinutes } from '@/lib/format'
+import GameIcon from './GameIcon'
 
 interface Props {
   totals: GameTotal[]
@@ -50,7 +51,7 @@ export default function GameBreakdown({ totals, meta, colors, game, onToggleGame
                   onClick={() => onToggleGame(t.appid)}
                 >
                   <span className="game-icon">
-                    {m?.icon ? <img src={m.icon} alt="" width={28} height={28} loading="lazy" /> : <span aria-hidden="true">{(m?.name ?? '?').slice(0, 1)}</span>}
+                    <GameIcon src={m?.icon} name={m?.name ?? '?'} size={28} />
                   </span>
                   <span className="game-main">
                     <span className="game-line">

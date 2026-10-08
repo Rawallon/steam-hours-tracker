@@ -87,7 +87,9 @@ export function stackOf(bucket: Bucket, top: string[]): { appid: string; minutes
 export function colorMap(totals: GameTotal[]): Record<string, string> {
   const map: Record<string, string> = { [OTHER]: OTHER_COLOR }
   totals.forEach((t, i) => {
-    map[t.appid] = i < PALETTE.length ? PALETTE[i] : OTHER_COLOR
+    // beyond the palette: golden-angle hues, never the "Outros" gray, so any game
+    // that reaches the top 6 of a narrower range keeps a distinct stable color
+    map[t.appid] = i < PALETTE.length ? PALETTE[i] : `hsl(${Math.round((i * 137.508) % 360)} 55% 62%)`
   })
   return map
 }

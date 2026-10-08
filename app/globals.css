@@ -710,6 +710,9 @@ button.legend-item[aria-pressed='true'] {
 }
 
 @media (max-width: 640px) {
+  .controls {
+    position: static;
+  }
   .controls-inner {
     padding: 8px 16px;
   }
