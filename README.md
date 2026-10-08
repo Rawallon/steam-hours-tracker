@@ -54,6 +54,25 @@ deploy.
 curl -H "Authorization: Bearer SEU_CRON_SECRET" https://SEU-APP.vercel.app/api/cron/poll
 ```
 
+## API de stats
+
+`GET /api/stats?days=N` (`N` inteiro de 1 a 366, padrão 30; inválido retorna 400).
+
+```json
+{
+  "today": "2026-10-07",
+  "meta": { "730": { "name": "Counter-Strike 2", "icon": "https://..." } },
+  "days": { "2026-10-06": { "730": 95 } }
+}
+```
+
+- `today`: data atual em America/Sao_Paulo (`YYYY-MM-DD`).
+- `meta`: nome e ícone, só dos jogos presentes em `days`.
+- `days`: minutos por jogo, só dias com tempo jogado.
+- Cache: `Cache-Control: s-maxage=300, stale-while-revalidate`.
+
+A página lê `?range=7|30|90|365&group=day|week|month&game=<appid>` da URL.
+
 ## Rodando os testes
 
 ```bash
