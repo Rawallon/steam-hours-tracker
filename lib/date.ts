@@ -1,5 +1,4 @@
 const TIME_ZONE = 'America/Sao_Paulo'
-const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
 export function todayInTZ(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -10,10 +9,35 @@ export function todayInTZ(now: Date = new Date()): string {
   }).format(now)
 }
 
+function toUTC(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d))
+}
+
+function fmt(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+export function addDays(date: string, n: number): string {
+  const d = toUTC(date)
+  d.setUTCDate(d.getUTCDate() + n)
+  return fmt(d)
+}
+
+/** 0=Mon..6=Sun */
+export function dayOfWeek(date: string): number {
+  return (toUTC(date).getUTCDay() + 6) % 7
+}
+
+export function weekStart(date: string): string {
+  return addDays(date, -dayOfWeek(date))
+}
+
+export function monthStart(date: string): string {
+  return date.slice(0, 8) + '01'
+}
+
 export function lastNDates(n: number, now: Date = new Date()): string[] {
-  const dates: string[] = []
-  for (let i = 0; i < n; i++) {
-    dates.push(todayInTZ(new Date(now.getTime() - i * ONE_DAY_MS)))
-  }
-  return dates
+  const today = todayInTZ(now)
+  return Array.from({ length: n }, (_, i) => addDays(today, -i))
 }
