@@ -1056,3 +1056,25 @@ button.legend-item[aria-pressed='true'] {
     font-size: 10px;
   }
 }
+
+/* ---------- fixed y-axis ---------- */
+
+.chart-body {
+  display: flex;
+  align-items: flex-start;
+}
+
+.chart-axis {
+  flex: none;
+  display: block;
+}
+
+.chart-body .chart-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+.cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

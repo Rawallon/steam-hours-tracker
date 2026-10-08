@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import type { StatsResponse } from '@/lib/stats'
 import {
   bucketBy,
@@ -30,7 +29,6 @@ import MonthCalendar from './MonthCalendar'
 const HEATMAP_MIN_DAYS = 180
 
 export default function Dashboard({ initial }: { initial: View }) {
-  const router = useRouter()
   const [range, setRange] = useState<Range>(initial.range)
   const [group, setGroup] = useState<Group>(initial.group)
   const [game, setGame] = useState<string | null>(initial.game)
@@ -59,7 +57,8 @@ export default function Dashboard({ initial }: { initial: View }) {
     if (next.range !== undefined) setRange(v.range)
     if (next.group !== undefined) setGroup(v.group)
     if ('game' in next) setGame(v.game)
-    router.replace(viewQuery(v), { scroll: false })
+    // URL sync only: state stays client-side, no server round trip
+    window.history.replaceState(null, '', viewQuery(v))
   }
 
   const toggleGame = (appid: string) => update({ game: game === appid ? null : appid })
